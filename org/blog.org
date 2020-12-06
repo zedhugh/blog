@@ -1,0 +1,361 @@
+#+title: 博客记录
+#+hugo_base_dir: ../
+#+hugo_section: post
+#+hugo_auto_set_lastmod: t
+#+author:
+#+hugo_custom_front_matter: :author Zedhugh Chen
+
+* Hugo博客搭建记录                                                :blog:hugo:
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: hugo_blog_setup
+  :EXPORT_DATE: 2020-10-03
+  :END:
+  一直以来都想自己搭建一个博客，记录一下自己的技术和生活！由于我自己是 =Emacs= 的重度用户加脑残粉，所以希望能用 =Emacs= 搞定的事情都在
+  =Emacs= 里面搞定，而且 =Emacs= 里面的 =org-mode= 功能强悍，最终选定博客内容用 =org-mode= 记录原始内容，用 =ox-hugo= 导出， =hugo= 做
+  博客静态页面生成。评论互动啥的就不需要了，毕竟这个博客的目的就只是记录下自己的技术和生活而已。
+
+  下面就是博客的搭建流程及配置记录了。
+
+** 博客搭建流程
+
+   1. 安装 =hugo=
+
+      linux包管理器中应该就自带有 =hugo= ，直接用相应的包管理器安装即可，如果包管理器中没有，则去[[https://gohugo.io/getting-started/installing/][hugo官网安装指南]]中看具体的安装指引。
+      我自己是用的 =Gentoo= ，安装命令是
+      #+begin_src shell
+        emerge hugo
+      #+end_src
+   2. 生成站点
+
+      生成站点的命令是
+      #+begin_src shell
+        hugo new site blog
+      #+end_src
+      这里站点名称就叫 /blog/ 吧，反正我自己的所有东西都会放到这里的。
+   3. 添加主题
+
+      综合对比了一些主题后，选择了 [[https://github.com/olOwOlo/hugo-theme-even][=Even]]= 主题，感觉比较符合我自己的喜好。添加主题直接用 =git= 克隆即可。克隆命令是
+      #+begin_src shell
+        git clone https://github.com/olOwOlo/hugo-theme-even themes/even
+      #+end_src
+      拷贝 /_blog/themes/even/exampleSite/config.toml_/ 到 /_blog/config.toml_/ ，然后根据其注释修改成符合自己的信息即可。
+   4. 自定义 =CSS=
+
+      使用以上配置生成的静态站点的带下划线的样式页面使用的是 =underline= 样式类，需要自定义该样式的显示效果，在 =blog/static/css/underline.css=
+      文件中加入下划线显示样式
+      #+begin_src css
+        .underline {
+          text-decoration: underline;
+        }
+      #+end_src
+      然后再在 =config.toml= 文件中找到 =customCSS= 那一行，将 ="./underline.css"= ，写入该配置中即可，注意，此处填写的文件名要是相对路径，
+      =config.toml= 中的注释有讲解，稍加注意即可。
+
+** Emacs配置
+   在 =Emacs= 中主要需要做的就是安装并配置 =ox-hugo= 。
+
+   =ox-hugo= 可以直接通过 =melpa= 安装。
+
+   配置则直接在自己的 Emacs 配置中加入以下设置即可
+   #+begin_src emacs-lisp
+     (with-eval-after-load 'ox
+       (require 'ox-hugo))
+   #+end_src
+
+** org属性设置
+   由于内容源文件使用的是 =org= ，在编写内容的时候需要设置一些属性。
+   需要设置的最基础的属性如下
+   #+begin_example
+     ,#+hugo_base_dir: ../blog
+     ,#+hugo_section: post
+     ,#+hugo_auto_set_lastmod: t
+     ,#+author:
+     ,#+hugo_custom_front_matter: :author Zedhugh Chen
+   #+end_example
+
+   其中 =hugo_base_dir= 和 =hugo_section= 必须设置， =hugo_base_dir= 的值是 */org文件/* 到 */hugo站点目录/* 的 */相对路径/* ，
+   =hugo_section= 的值为导出的文件在所放文件夹的名字，使用 =Even= 主题，设置为 =post= 即可。
+
+   =hugo_auto_set_lastmod= 设置成 =t= 可以在生成站点文章时自动设置文章内容编辑时间， 若设置成 =nil= 则时间值为 /0001-01-01/ ，所以建议设置为 =t= 。
+
+   #+begin_example
+     ,#+author:
+     ,#+hugo_custom_front_matter: :author Zedhugh Chen
+   #+end_example
+   这两行设置主要是因为 =Even= 主题不兼容 =ox-hugo= 导出的作者格式，导致生成站点失败，所以需要这样自定义 =ox-hugo= 导出时的作者信息生成。
+
+   这两行必须同时存在，详细信息参见[[https://ox-hugo.scripter.co/doc/author/][ox-hugo作者设置]]。
+
+   为了方便使用，可以将上面的属性设置作为一个代码片段用于写作，其内容如下
+   #+begin_src snippet
+     # -*- mode: snippet -*-
+     # name: hugo
+     # key: hh
+     # --
+     ,#+hugo_base_dir: $1
+     ,#+hugo_section: ${2:post}
+     ,#+hugo_auto_set_lastmod: t
+     ,#+author:
+     ,#+hugo_custom_front_matter: :author $3
+     $0
+   #+end_src
+
+** 静态站点同步
+   通过以上设置，可以直接使用如下命令进行站点预览
+   #+begin_src shell
+     cd blog
+     hugo server
+   #+end_src
+   也可以直接在 =blog= 目录下使用 =hugo= 命令（不带参数）生成静态站点用于部署到服务器上，生成的站点在 =blog/public= 目录下。
+
+   但生成的本地站点与服务器上的站点内容需要同步，才能将内容发布到服务器上。同步使用 =rsync= ，该工具支持增量同步，加快同步速度。
+
+   同步命令为
+   #+begin_src shell
+     cd blog
+     hugo
+     rsync -avzPL public/ root@zedhugh.fun:/var/www/blog
+   #+end_src
+   该命令需要先配置ssh密钥，配置好密钥后即可直接使用上面的命令同步了。
+
+   Happy hacking.
+
+* Linux使用swapfile设置                               :swapfile:@linux:btrfs:
+  :PROPERTIES:
+  :EXPORT_FILE_NAME: linux_swapfile_config
+  :EXPORT_DATE: 2020-10-14
+  :END:
+
+  本人是一个前端开发人员，开发环境为 =Gentoo Linux/GNU= 系统、 =Emacs= 编辑器。
+
+  现在主要用 =React/redux= 技术栈开发。
+
+  由于开发时存有热更功能并需要打开浏览器的控制台查看代码打印，这两个功能都是内存消耗大户。尤其是浏览器控制台，打印内容多了之后，稍微过
+  段时间就会消耗几个G级别的内存，造成内存耗尽。而由于linux的内存策略，会造成系统卡死，只能重启系统，丢失工作进度。
+
+  当然，也可以随时关注内存使用情况，在内存即将消耗殆尽时关闭浏览器控制台，即可释放掉无端消耗的内存。但稍不注意，未及时释放浏览器吃掉的
+  内存，就会导致系统卡死，治标不治本。由此想到可以引入 =swap分区= 或 =swap文件= 从根本上解决该问题。
+
+  这篇博客就是总结及记录一下 =linux= 中 =swap空间= 的使用及配置方法。
+
+** swap分区配置
+   先说说 =swap分区= ，swap分区就是一个硬盘的物理分区，只不过是格式化的时候格式化成 =swap分区格式= 而已。现在来说说其步骤：
+
+   1. 用分区工具新建一个磁盘分区
+
+      linux常用的分区工具有 =fdisk= 和 =parted= ，先说说 =fdisk= 。 =fdisk= 命令为 =fdisk /dev/sdb= ，其中 =/dev/sdb= 是硬盘在linux系统
+      下对应的文件，也可能时其他文件名，比如我的SSD硬盘（m.2接口）的文件路径就是 =/dev/nvme0n1= 。这个改成自己硬盘对应的文件就可以了。
+      然后就是交互式分区了，分区时可以通过 =m= 命令查看交互命令介绍，注意其中几个命令即可：
+      #+begin_quote
+      d: 删除分区
+
+      n: 新建分区
+
+      m: 查看命令列表
+      #+end_quote
+      新建分区是交互式的，根据提示输入相应参数即可。
+
+      =parted= 使用方式和 =fdisk= 大同小异，只是交互命令不同，交互查看帮助用 =help= 即可。此处不再赘诉，具体操作自行查找资料。
+
+   2. 格式化分区
+
+      假设步骤1中新建的分区文件路径为 =/dev/sdb1= ，则格式化swap分区命令为
+      #+begin_src shell
+        mkswap /dev/sdb1
+      #+end_src
+
+   3. 启用swap分区
+
+      通过上面的两步，swap分区我们已经准备好了，现在启用即可，启用命令是
+      #+begin_src shell
+        swapon /dev/sdb1
+      #+end_src
+
+   4. 自动挂载swap分区
+
+      现在swap分区已经启用了。但是如果重启系统，则swap分区还是未启用，现在我们想让开机自动启用swap分区。开机启用也简单，将swap分区信息
+      加入到 =/etc/fstab= 文件中即可，加入的信息如下所示：
+      #+begin_src conf
+        /dev/sdb1		swap		swap		defaults	0 0
+      #+end_src
+
+   5. 配置bootloader
+
+      现在我们的swap分区已经完全可用了，而且是重启系统也会自动启用swap分区，但如果想要休眠功能还是不行。休眠功能需要告诉 =bootloader=
+      从哪里读取休眠保存信息，我是使用grub引导系统的，要使用休眠功能，修改grub配置即可，修改的配置文件为 =/etc/default/grub= 。修改内容
+      为：
+      #+begin_src conf
+        GRUB_CMDLINE_LINUX_DEFAULT="resume=/dev/sdb1"
+      #+end_src
+
+   6. 重新生成引导配置
+
+      更新了 =grub= 的设置，但需要重新生成grub引导文件才会在grub引导时生效，重新生成grub引导配置命令为：
+      #+begin_src shell
+        grub-mkconfig -o /boot/grub/grub.cfg
+      #+end_src
+
+   此时休眠功能已经可用，如果使用 =systemd= 或 =elogind= ，直接使用命令 =loginctl hibernate= 命令即可。如果有硬盘指示灯，会发现此时硬盘
+   指示灯不停闪烁，一会儿后停止，并且完全关机，因为休眠时会把内存中的信息写到swap分区，以便下次开机从swap分区中读取关机前的状态以恢复之。
+
+** swap文件配置
+   swap文件与swap分区基本相同，只是其不是一个物理磁盘分区，而是磁盘上的一个文件，现在说说其步骤。
+
+   1. 生成swap文件
+
+      swap文件我们可以通过 =dd= 命令创建，其命令为：
+      #+begin_src shell
+        dd if=/dev/zero of=/swapfile bs=1M count=4096
+      #+end_src
+      请注意，生成该文件后需要将文件权限设为 =600= ，文件所有者设为 =root:root= ，其意思为该文件所有者为 =root= ，所属分组为 =root= ，文
+      件仅能让所有者读写，其他任何用户无读写执行权限。
+
+      另外，swap文件最好放在根分区，否则有可能swap挂载启用不成功，因为如果要挂载swap文件时，swap文件所属分区还未挂载完成，则找不到swap文
+      件，导致swap文件挂载启用不成功。
+
+   2. 格式化swap文件
+
+      和swap分区中一样，使用相同的命令，将代表swap分区的 =/dev/sdb1= 替换成刚刚生成出来的swap文件 =/swapfile= 即可。
+      #+begin_src shell
+        mkswap /swapfile
+      #+end_src
+
+   3. 启用swap文件
+
+      启用swap文件和启用swap分区也是一样的
+      #+begin_src shell
+        swapon /swapfile
+      #+end_src
+
+   4. 自动挂载swap文件
+
+      配置swap文件自动挂载也和swap分区没任何区别
+      #+begin_src conf
+        /swapfile		swap		swap		defaults	0 0
+      #+end_src
+
+   5. 配置bootloader
+
+      在使用swap文件时，grub配置在有所不同，需要指定swap文件所在分区，并指定swap文件在其所在分区的物理偏移量。比如swap文件在root分区，而
+      root分区为 =/dev/sda1= ，其偏移量为 =22549760= ，则在grub配置文件(=/etc/default/grub=)中配置项为：
+      #+begin_src conf
+        GRUB_CMDLINE_LINUX_DEFAULT="resume=/dev/sda1 resume_offset=22549760"
+      #+end_src
+      其中 =resume_offset= 参数的值使用如下命令获取
+      #+begin_src shell
+        filefrag -v /swapfile
+      #+end_src
+
+   6. 重新生成引导配置
+
+      重新生成引导配置操作和swap分区完全相同，执行命令即可。
+
+   此时使用swap文件提供休眠功能也已经完全可用了。由于 =swap文件= 比 =swap分区= 灵活很多，所以我自己是更倾向于使用 =swap文件= 。
+
+** brtfs文件系统
+   由于brtfs文件系统的特殊性，如果swap文件在brtfs文件系统上还需要一些其他的配置。主要两个方面的问题：
+
+   1. brtfs文件系统对 =swap文件= 的 =cow= 需要关闭
+   2. =filefrag= 拿到的文件偏移量在brtfs文件系统上不准确
+
+   关闭swap文件的 =cow= 需要在生成swap文件时修改其属性，首先修改其属性，命令为：
+   #+begin_src shell
+     truncate -s 0 /swapfile
+     chattr +C /swapfile
+     brtfs property set /swapfile compression none
+   #+end_src
+   然后其他步骤就和正常的步骤是一样的了，使用 =dd= 命令修改swap文件的大小到目标大小。其后流程照着swap文件配置一步一步来就可以了。
+
+   swap文件偏移量则可通过一个小工具[[https://github.com/osandov/osandov-linux/blob/master/scripts/btrfs_map_physical.c][btrfs_map_physical.c]]拿到。
+
+   下载了该文件后先将其编译成可执行程序
+   #+begin_src shell
+     gcc -O2 -o btrfs_map_physical btrfs_map_physical.c
+   #+end_src
+   然后通过生成的程序获取swap文件在其所在分区上的物理偏移量
+   #+begin_src shell
+     ./btrfs_map_physical /swapfile
+   #+end_src
+   程序输出如下所示
+   | FILE OFFSET | EXTENT TYPE | LOGICAL SIZE | LOGICAL OFFSET | PHYSICAL SIZE | DEVID | PHYSICAL OFFSET |
+   |           0 | regular     |         4096 |     2927632384 |     268435456 |     1 |      4009762816 |
+   |        4096 | prealloc    |    268431360 |     2927636480 |     268431360 |     1 |      4009766912 |
+   |   268435456 | prealloc    |    268435456 |     3251634176 |     268435456 |     1 |      4333764608 |
+   |   536870912 | prealloc    |    268435456 |     3520069632 |     268435456 |     1 |      4602200064 |
+   |   805306368 | prealloc    |    268435456 |     3788505088 |     268435456 |     1 |      4870635520 |
+   |  1073741824 | prealloc    |    268435456 |     4056940544 |     268435456 |     1 |      5139070976 |
+   |  1342177280 | prealloc    |    268435456 |     4325376000 |     268435456 |     1 |      5407506432 |
+   |  1610612736 | prealloc    |    268435456 |     4593811456 |     268435456 |     1 |      5675941888 |
+
+   在上述例子中，我们要使用的就是 =4009762816= 了，但这个不是最终我们要用到的值。我们最终的值需要用这个值除以 =pagesize= 参数，
+   =pagesize= 参数 通过如下命令拿到
+   #+begin_src shell
+     getconf PAGESIZE
+   #+end_src
+   如果通过上面的命令获取到的值为 =4096= ，那 =resume_offset= 参数为 =4009762816 / 4096 = 978946= 。
+
+   所以最终 =/etc/default/grub= 文件需要加入的配置为：
+   #+begin_src conf
+     GRUB_CMDLINE_LINUX_DEFAULT="resume=/dev/sda1 resume_offset=978946"
+   #+end_src
+
+   此时，在btrfs文件系统上通过swap文件启用休眠功能也已配置完成。
+
+   但由于我自己使用的时 =Gentoo/Linux= 系统，分区为
+   | 分区      | 文件系统 | UUID                                 | 分区大小 | 挂载点    |
+   |-----------+----------+--------------------------------------+----------+-----------|
+   | nvme0n1p2 | vfat     | 2DC0-5BAA                            | 100.2M   | /boot/efi |
+   | nvme0n1p3 | btrfs    | 06fe5132-003f-4de7-9c27-01c62abc2b45 | 7.9G     | /         |
+   | nvme0n1p5 | btrfs    | f7f5ab8d-8b1e-4d69-83a9-8416b3a8008b | 236G     | /home     |
+   =swap文件= 路径为 =/home/swapfile= 。
+
+   由于 =/home= 是单独一个分区，所以就涉及到在 =swap文件配置= 中第1步时生成的swap文件放置的位置的注意事项。由于我自己使用的是
+   =Gentoo/Linux= ，挂载swap有一个单独的服务(=/etc/init.d/swap=)，默认该服务在 =boot= 级别，将其修改到 =default= 级别，让其启
+   动时间往后放即可，操作命令为：
+   #+begin_src shell
+     rc-update del swap boot
+     rc-update add swap default
+   #+end_src
+
+   至此，swap所有设置都已完成。享受swap带来的便利吧 :)
+
+   当然，如果你没有休眠的需求，并且你自己平常使用时内存消耗不大就没必要设置swap了。
+
+   Happy hacking...
+
+
+   参考文档：
+
+   [[https://wiki.archlinux.org/index.php/swap#Swap_file][https://wiki.archlinux.org/index.php/swap]]
+
+   [[https://wiki.archlinux.org/index.php/Power_management/Suspend%20and%20hibernate#Hibernation_into_swap_file_on_Btrfs][https://wiki.archlinux.org/index.php/Power_management/Suspend and hibernate]]
+
+* 杂七杂八                                                           :@linux:
+  :PROPERTIES:
+  :EXPORT_HUGO_WEIGHT: 1
+  :EXPORT_FILE_NAME: misc_note
+  :EXPORT_DATE: 2020-10-28
+  :END:
+  这里记录一些杂七杂八的东西，这些东西不足以单独拿来写成一篇博客，仅仅是一些使用小技巧或者是一些随想而已。
+
+** linux字体别名
+   将如下配置放到 =~/.fonts.conf= 文件中即可
+   #+begin_src xml
+     <?xml version="1.0"?>
+     <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+     <fontconfig>
+       <match>
+         <test name="family"><string>Terminus</string></test>
+         <edit name="family">
+           <string>xos4 Terminus</string>
+         </edit>
+       </match>
+       <match>
+         <test name="family"><string>Monospace</string></test>
+         <edit name="family">
+           <string>Sarasa Mono SC</string>
+         </edit>
+       </match>
+     </fontconfig>
+   #+end_src
+   上述配置中为 =xos4 Terminus= 字体设置别名 =Terminus= ， =Sarasa Mono SC= 字体设置别名 =Monospace= 。
